@@ -3,6 +3,7 @@ from idaapi import Choose
 import idaapi
 from ida_kernwin import *
 from fuzzywuzzy import process
+from idautils import *
 from icon import *
 
 """
@@ -78,7 +79,12 @@ for action in registered_actions:
     desctription = get_action_tooltip(action)
     choices[label] = Commands(fptr=process_ui_action, args=[action], description=desctription)
 
-
+#Structs()
+#Functions()
+#Heads()
+for n in Names():
+    #jump to addr
+    choices[n[1]] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + n[1])
 
 names = []
 for k,v in choices.items():
