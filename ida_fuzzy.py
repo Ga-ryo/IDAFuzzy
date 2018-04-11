@@ -4,7 +4,6 @@ import idaapi
 from ida_kernwin import *
 from fuzzywuzzy import process
 from idautils import *
-from icon import *
 
 """
 Fuzzy Search v1.0
