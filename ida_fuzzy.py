@@ -5,6 +5,8 @@ from ida_kernwin import *
 from fuzzywuzzy import process, fuzz
 from idautils import *
 import gc
+import functools
+from PyQt5 import QtCore
 
 """
 Fuzzy Search v1.0
@@ -36,6 +38,7 @@ Choose.CH_QFTYP_FUZZY is not so usable.
   -- but add column affects number of pushing tab.
 """
 
+LISTLEN = 10
 
 class Commands(object):
     """
@@ -105,6 +108,47 @@ class EmbeddedChooserClass(Choose):
         # print("getsize -> %d" % n)
         return n
 
+"""
+def hooked_scorer(*args,**kwargs):
+    # watch event every time.
+    pass
+
+def hook(function, prefunction):
+    @functools.wraps(function)
+    def run(*args, **kwargs):
+        prefunction(*args, **kwargs)
+        return function(*args, **kwargs)
+    return run
+fuzz.WRatio = hook(fuzz.WRatio, hooked_scorer)
+
+"""
+
+class FuzzySearchThread(QtCore.QThread):
+    refresh_list = QtCore.pyqtSignal([str]*LISTLEN)
+    def __init__(self, parent=None):
+        super(FuzzySearchThread, self).__init__(parent)
+        self.stopped = False
+        self.mutex = QtCore.QMutex()
+
+    def setup(self,  s):
+        self.stoppped = False
+        self.s = s
+
+    def stop( self ):
+        with QtCore.QMutexLocker( self.mutex ):
+            self.stopped = True
+
+    def run(self):
+        res = process.extract(self.s, names, limit=LISTLEN, scorer=fuzz.WRatio)  # f.iStr1.value won't change until Form.Execute() returns.
+        extracts = []
+        for i in res:
+            extracts.append(i[0])
+        for i in xrange(10-len(res)):
+            extracts.append("")
+        self.refresh_list.emit(*extracts)  # call main Thread's UI function.
+        self.stop()
+        self.finished.emit()
+
 
 # --------------------------------------------------------------------------
 class FuzzySearchForm(Form):
@@ -112,6 +156,10 @@ class FuzzySearchForm(Form):
         self.invert = False
         self.EChooser = EmbeddedChooserClass("Title", flags=Choose.CH_MODAL)
         self.selected_id = 0
+        self.s = ""
+        self.fst = FuzzySearchThread()
+        self.fst.refresh_list.connect(self.refresh_list)
+        self.fst.finished.connect(self.finished)
         # self.EChooser = EmbeddedChooserClass("Title", flags=Choose.CH_CAN_REFRESH)
         Form.__init__(self, r"""STARTITEM 
         IDA Fuzzy Search
@@ -126,6 +174,7 @@ class FuzzySearchForm(Form):
         })
         # self.modal = False
 
+
     def OnFormChange(self, fid):
         if fid == -1:
             # initialize
@@ -136,21 +185,31 @@ class FuzzySearchForm(Form):
         elif fid == self.cEChooser.id:
             self.selected_id = self.GetControlValue(self.cEChooser)[0]
         elif fid == self.iStr1.id:
-            s = self.GetControlValue(self.iStr1)
+            self.s = self.GetControlValue(self.iStr1)
             self.EChooser.items = []
-            if s == '':
+            if self.s == '':
                 self.RefreshField(self.cEChooser)
                 return 1
-            extracts = process.extract(s, names, limit=10)  # f.iStr1.value won't change until Form.Execute() returns.
-            for ex in extracts:
-                #self.EChooser.items.append([ex[0], choices[ex[0]].description])
-                self.EChooser.items.append([ex[0]])
-            self.RefreshField(self.cEChooser)
-            # print("Extract : " + str(extracts))
-            self.SetControlValue(self.cEChooser,[0])
+            self.fst.stop()
+            self.fst.quit()  #  if you type speedy, FuzzySearch which executed before is not finished here.
+            self.fst.terminate()  # but last time's FuzzySearch is meaningless, so terminate this. <- little dangerous?
+            self.fst.setup(self.s)
+            self.fst.start()
+
+            # extracts = process.extract(s, names, limit=10)  # f.iStr1.value won't change until Form.Execute() returns.
         else:
             pass
         return 1
+
+    def refresh_list(self, *extracts):
+        for ex in extracts:
+            # self.EChooser.items.append([ex[0], choices[ex[0]].description])
+            self.EChooser.items.append([ex])
+        self.RefreshField(self.cEChooser)
+        self.SetControlValue(self.cEChooser, [0])  # set cursor top
+
+    def finished(self):
+        pass
 
     def get_selected_item(self):
         if self.selected_id == -1:
@@ -162,11 +221,11 @@ class FuzzySearchForm(Form):
 # --------------------------------------------------------------------------
 def fuzzy_search_main():
     # Create form
-    global f,choices,names
+    global f, choices, names
     choices = {}
     names = []
     gc.collect()
-    
+
     # Runtime collector.
     # Pros
     # 1. No need to refresh automatically.(When GDB start, libc symbol,PIE's symbol,etc... address will change.When user rename symbol, also.)
@@ -186,17 +245,17 @@ def fuzzy_search_main():
         if get_action_state(action)[1] > idaapi.AST_ENABLE:
             continue
         choices[label] = Commands(fptr=process_ui_action, args=[action], description=desctription, icon=icon)
-    
+
     # Functions()
     # Heads()
     for n in Names():
         # jump to addr
-        choices[n[1]] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + n[1], icon=-1)
-    
+        choices[n[1]] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + n[1], icon=124)
+
     for n in Structs():
-        choices[n[2]] = Commands(fptr=open_structs_window, args=[n[1]], description="Jump to Structure definition of " + n[2], icon=52)
-    
-    
+        choices[n[2]] = Commands(fptr=open_structs_window, args=[n[1]],
+                                 description="Jump to Structure definition of " + n[2], icon=52)
+
     for k, v in choices.items():
         names.append(k)
 
@@ -213,6 +272,7 @@ def fuzzy_search_main():
     # Dispose the form
     f.Free()
 
+
 class fuzzy_search_handler(idaapi.action_handler_t):
     def __init__(self):
         idaapi.action_handler_t.__init__(self)
@@ -227,6 +287,7 @@ class fuzzy_search_handler(idaapi.action_handler_t):
     def update(self, ctx):
         return idaapi.AST_ENABLE_ALWAYS
 
+
 class FuzzySearchPlugin(idaapi.plugin_t):
     flags = idaapi.PLUGIN_FIX | idaapi.PLUGIN_HIDE
     comment = "Fuzzy search everything for IDA"
@@ -236,7 +297,8 @@ class FuzzySearchPlugin(idaapi.plugin_t):
 
     def init(self):
         print("Fuzzy Search Plugin loaded.")
-        idaapi.register_action(idaapi.action_desc_t("fz:fuzzysearch", "Fuzzy Search", fuzzy_search_handler(), "Shift+SPACE", "", -1))
+        idaapi.register_action(
+            idaapi.action_desc_t("fz:fuzzysearch", "Fuzzy Search", fuzzy_search_handler(), "Shift+SPACE", "", -1))
 
         return idaapi.PLUGIN_KEEP
 
