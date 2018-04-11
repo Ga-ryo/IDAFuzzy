@@ -4,6 +4,7 @@ import idaapi
 from ida_kernwin import *
 from fuzzywuzzy import process, fuzz
 from idautils import *
+import gc
 
 """
 Fuzzy Search v1.0
@@ -50,17 +51,6 @@ class Commands(object):
     def description(self):
         return self.kwargs.get('description')
 
-    @property
-    def type(self):
-        if self.kwargs.get('fptr') == process_ui_action:
-            return "ACTION"
-        else:
-            return "ELSE"
-
-    @property
-    def action(self):
-        return self.kwargs.get('action')
-
     def execute(self):
         # ea = get_screen_ea()
         # open_strings_window(ea)
@@ -75,31 +65,8 @@ class Commands(object):
         return self.kwargs.get('icon')
 
 
-# TODO read from config or DB or ...
 choices = {}
-# func ptr and icon id
-registered_actions = get_registered_actions()
-for action in registered_actions:
-    # IDA's bug? tilde exists many times in label. ex) Abort -> ~A~bort
-    # So fix it.
-    label = get_action_label(action).replace('~', '')
-    icon = get_action_icon(action)[1]
-    desctription = get_action_tooltip(action)
-    choices[label] = Commands(fptr=process_ui_action, args=[action], description=desctription, icon=icon, action=action)
-
-# Functions()
-# Heads()
-for n in Names():
-    # jump to addr
-    choices[n[1]] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + n[1], icon=-1)
-
-for n in Structs():
-    choices[n[2]] = Commands(fptr=open_structs_window, args=[n[1]], description="Jump to Structure definition of " + n[2], icon=52)
-
-
 names = []
-for k, v in choices.items():
-    names.append(k)
 
 
 class EmbeddedChooserClass(Choose):
@@ -176,11 +143,8 @@ class FuzzySearchForm(Form):
                 return 1
             extracts = process.extract(s, names, limit=10)  # f.iStr1.value won't change until Form.Execute() returns.
             for ex in extracts:
-                print(choices[ex[0]].action)
-                print(get_action_state(choices[ex[0]].action))
-                if choices[ex[0]].type == "ACTION" and get_action_state(choices[ex[0]].action)[1] > idaapi.AST_ENABLE:
-                    continue
-                self.EChooser.items.append([ex[0], choices[ex[0]].description])
+                #self.EChooser.items.append([ex[0], choices[ex[0]].description])
+                self.EChooser.items.append([ex[0]])
             self.RefreshField(self.cEChooser)
             # print("Extract : " + str(extracts))
             self.SetControlValue(self.cEChooser,[0])
@@ -198,7 +162,44 @@ class FuzzySearchForm(Form):
 # --------------------------------------------------------------------------
 def fuzzy_search_main():
     # Create form
-    global f
+    global f,choices,names
+    choices = {}
+    names = []
+    gc.collect()
+    
+    # Runtime collector.
+    # Pros
+    # 1. No need to refresh automatically.(When GDB start, libc symbol,PIE's symbol,etc... address will change.When user rename symbol, also.)
+    # 1.1. If you want to search library's function, view module list and right-click onto target library. Then click "Analyze module".
+    # 2. Action's state is collect (When user start typing, active window is FuzzySearchForm. So filter doesn't works correctly. ex: OpHex is active at Disas view but not active at FuzzySearchForm.)
+    # Cons
+    # 1. Become slow in case large file.
+    # 1.1. Re-generate dictionary isn't matter.(But scoring time will be bigger.)
+    # func ptr and icon id
+    registered_actions = get_registered_actions()
+    for action in registered_actions:
+        # IDA's bug? tilde exists many times in label. ex) Abort -> ~A~bort
+        # So fix it.
+        label = get_action_label(action).replace('~', '')
+        icon = get_action_icon(action)[1]
+        desctription = get_action_tooltip(action)
+        if get_action_state(action)[1] > idaapi.AST_ENABLE:
+            continue
+        choices[label] = Commands(fptr=process_ui_action, args=[action], description=desctription, icon=icon)
+    
+    # Functions()
+    # Heads()
+    for n in Names():
+        # jump to addr
+        choices[n[1]] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + n[1], icon=-1)
+    
+    for n in Structs():
+        choices[n[2]] = Commands(fptr=open_structs_window, args=[n[1]], description="Jump to Structure definition of " + n[2], icon=52)
+    
+    
+    for k, v in choices.items():
+        names.append(k)
+
     f = FuzzySearchForm()
 
     # Compile (in order to populate the controls)
