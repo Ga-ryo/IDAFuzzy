@@ -3,7 +3,7 @@
 
 ## What's IDAFuzzy?
 IDAFuzzy is fuzzy searching tool for IDA Pro.
-This tool helps you to find command/function name/struct name and so on.
+This tool helps you to find command/function/struct and so on.
 This tool is usefull when
 1. You don't remember all shortcut.
 2. You don't remember all function/struct name exactly.
@@ -26,3 +26,5 @@ Just do as follows.
 2. Type as you like. (e.g. "snap da")
 3. Type TAB for selecting.(First one is automatically selected.)
 4. Type Enter to (execute command/jump to address/jump to struct definition).
+
+<p align="center"><img src="https://github.com/Ga-ryo/IDAFuzzy/blob/master/screenshots/idafuzzy.gif"></p>
