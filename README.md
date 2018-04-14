@@ -28,3 +28,12 @@ Just do as follows.
 4. Type Enter to (execute command/jump to address/jump to struct definition).
 
 <p align="center"><img src="https://github.com/Ga-ryo/IDAFuzzy/blob/master/screenshots/idafuzzy.gif"></p>
+
+
+### Jump to function
+---
+<p align="center"><img src="https://github.com/Ga-ryo/IDAFuzzy/blob/master/screenshots/jumpf.gif"></p>
+
+### Jump to struct definition
+---
+<p align="center"><img src="https://github.com/Ga-ryo/IDAFuzzy/blob/master/screenshots/structdef.gif"></p>
