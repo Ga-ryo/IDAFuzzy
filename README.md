@@ -20,3 +20,9 @@ pip install fuzzywuzzy[speedup]
 Put ```ida_fuzzy.py``` into ```plugins``` directory.
 
 ## Usage
+Just do as follows.
+
+1. Type SHIFT+SPACE.
+2. Type as you like. (e.g. "snap da")
+3. Type TAB for selecting.(First one is automatically selected.)
+4. Type Enter to (execute command/jump to address/jump to struct definition).
