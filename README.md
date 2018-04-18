@@ -10,6 +10,8 @@ This tool is usefull when
 
 This tool is inspired by Mac's Spotlight and Intellij's Search Everywhere dialog.
 
+(Only IDA Pro 7 is tested.)
+
 ## Requirements
 It requires <a href="https://github.com/seatgeek/fuzzywuzzy">fuzzywuzzy</a>. 
 ```
