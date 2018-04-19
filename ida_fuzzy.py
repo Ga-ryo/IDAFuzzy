@@ -272,8 +272,10 @@ def fuzzy_search_main():
     # Functions()
     # Heads()
     for n in Names():
+        demangled = idc.Demangle(n[1], idc.GetLongPrm(idc.INF_SHORT_DN))
+        name = demangled if demangled else n[1]
         # jump to addr
-        choices[n[1]] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + n[1], icon=124)
+        choices[name] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + name, icon=124)
 
     for n in Structs():
         choices[n[2]] = Commands(fptr=open_structs_window, args=[n[1]],
