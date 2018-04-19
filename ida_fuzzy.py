@@ -208,6 +208,7 @@ class FuzzySearchForm(Form):
             self.fst.stop()
             self.fst.quit()  #  if you type speedy, FuzzySearch which executed before is not finished here.
             self.fst.terminate_event.set()
+            self.fst.wait()
             #self.fst.terminate()  # but last time's FuzzySearch is meaningless, so terminate this. <- little dangerous?
 
             #stop and quit take time.(and maybe non-blocking)
