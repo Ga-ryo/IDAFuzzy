@@ -7,6 +7,7 @@ from idautils import *
 import gc
 import functools
 from PyQt5 import QtCore
+import threading
 
 """
 Fuzzy Search v1.0
@@ -123,12 +124,22 @@ fuzz.WRatio = hook(fuzz.WRatio, hooked_scorer)
 
 """
 
+class TerminateException(Exception):
+    pass
+
+def hooked_scorer(*args, **kwargs):
+    if kwargs.pop('terminate_event').is_set():
+        raise TerminateException
+    return fuzz.WRatio(*args, **kwargs)
+
 class FuzzySearchThread(QtCore.QThread):
     refresh_list = QtCore.pyqtSignal([str]*LISTLEN)
+
     def __init__(self, parent=None):
         super(FuzzySearchThread, self).__init__(parent)
         self.stopped = False
         self.mutex = QtCore.QMutex()
+        self.terminate_event = threading.Event()
 
     def setup(self,  s):
         self.stoppped = False
@@ -139,13 +150,17 @@ class FuzzySearchThread(QtCore.QThread):
             self.stopped = True
 
     def run(self):
-        res = process.extract(self.s, names, limit=LISTLEN, scorer=fuzz.WRatio)  # f.iStr1.value won't change until Form.Execute() returns.
-        extracts = []
-        for i in res:
-            extracts.append(i[0])
-        for i in xrange(10-len(res)):
-            extracts.append("")
-        self.refresh_list.emit(*extracts)  # call main Thread's UI function.
+        f = functools.partial(hooked_scorer, terminate_event=self.terminate_event)
+        try:
+            res = process.extract(self.s, names, limit=LISTLEN, scorer=f)  # f.iStr1.value won't change until Form.Execute() returns.
+            extracts = []
+            for i in res:
+                extracts.append(i[0])
+            for i in xrange(10-len(res)):
+                extracts.append("")
+            self.refresh_list.emit(*extracts)  # call main Thread's UI function.
+        except TerminateException:
+            pass
         self.stop()
         self.finished.emit()
 
@@ -192,7 +207,8 @@ class FuzzySearchForm(Form):
                 return 1
             self.fst.stop()
             self.fst.quit()  #  if you type speedy, FuzzySearch which executed before is not finished here.
-            self.fst.terminate()  # but last time's FuzzySearch is meaningless, so terminate this. <- little dangerous?
+            self.fst.terminate_event.set()
+            #self.fst.terminate()  # but last time's FuzzySearch is meaningless, so terminate this. <- little dangerous?
 
             #stop and quit take time.(and maybe non-blocking)
             #So if you type speedy, some start() call will be ignored.
