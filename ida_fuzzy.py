@@ -156,7 +156,7 @@ class FuzzySearchThread(QtCore.QThread):
             extracts = []
             for i in res:
                 extracts.append(i[0])
-            for i in xrange(10-len(res)):
+            for i in range(10-len(res)):
                 extracts.append("")
             self.refresh_list.emit(*extracts)  # call main Thread's UI function.
         except TerminateException:
@@ -197,13 +197,13 @@ class FuzzySearchForm(Form):
         elif fid == -2:
             # terminate
             pass
-        elif fid == self.cEChooser.id:
-            self.selected_id = self.GetControlValue(self.cEChooser)[0]
+        elif fid == super().cEChooser.id:
+            self.selected_id = self.GetControlValue(super().cEChooser)[0]
         elif fid == self.iStr1.id:
             self.s = self.GetControlValue(self.iStr1)
             self.EChooser.items = []
             if self.s == '':
-                self.RefreshField(self.cEChooser)
+                self.RefreshField(super().cEChooser)
                 return 1
             self.fst.stop()
             self.fst.quit()  #  if you type speedy, FuzzySearch which executed before is not finished here.
@@ -229,8 +229,8 @@ class FuzzySearchForm(Form):
         for ex in extracts:
             # self.EChooser.items.append([ex[0], choices[ex[0]].description])
             self.EChooser.items.append([ex])
-        self.RefreshField(self.cEChooser)
-        self.SetControlValue(self.cEChooser, [0])  # set cursor top
+        self.RefreshField(super().cEChooser)
+        self.SetControlValue(super().cEChooser, [0])  # set cursor top
 
     def finished(self):
         pass
@@ -273,7 +273,7 @@ def fuzzy_search_main():
     # Functions()
     # Heads()
     for n in Names():
-        demangled = idc.Demangle(n[1], idc.GetLongPrm(idc.INF_SHORT_DN))
+        demangled = idc.demangle_name(n[1], idc.get_inf_attr(idc.INF_SHORT_DN))
         name = demangled if demangled else n[1]
         # jump to addr
         choices[name] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + name, icon=124)
