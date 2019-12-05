@@ -189,6 +189,10 @@ class FuzzySearchForm(Form):
         })
         # self.modal = False
 
+        try:
+            self.cEChooser = super().cEChooser #super() will raise exception in python2
+        except:
+            pass
 
     def OnFormChange(self, fid):
         if fid == -1:
