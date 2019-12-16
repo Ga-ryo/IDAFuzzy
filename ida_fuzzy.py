@@ -176,6 +176,13 @@ class FuzzySearchForm(Form):
         self.fst.refresh_list.connect(self.refresh_list)
         self.fst.finished.connect(self.finished)
         # self.EChooser = EmbeddedChooserClass("Title", flags=Choose.CH_CAN_REFRESH)
+
+	# Portability fix from Python2 to Python3.
+        try:
+            self.cEChooser = super().cEChooser #super() will raise exception in python2
+        except:
+            pass
+
         Form.__init__(self, r"""STARTITEM 
         IDA Fuzzy Search
         {FormChangeCb}
@@ -189,11 +196,6 @@ class FuzzySearchForm(Form):
         })
         # self.modal = False
 
-        try:
-            self.cEChooser = super().cEChooser #super() will raise exception in python2
-        except:
-            pass
-
     def OnFormChange(self, fid):
         if fid == -1:
             # initialize
@@ -201,13 +203,13 @@ class FuzzySearchForm(Form):
         elif fid == -2:
             # terminate
             pass
-        elif fid == super().cEChooser.id:
-            self.selected_id = self.GetControlValue(super().cEChooser)[0]
+        elif fid == self.cEChooser.id:
+            self.selected_id = self.GetControlValue(self.cEChooser)[0]
         elif fid == self.iStr1.id:
             self.s = self.GetControlValue(self.iStr1)
             self.EChooser.items = []
             if self.s == '':
-                self.RefreshField(super().cEChooser)
+                self.RefreshField(self.cEChooser)
                 return 1
             self.fst.stop()
             self.fst.quit()  #  if you type speedy, FuzzySearch which executed before is not finished here.
@@ -233,8 +235,8 @@ class FuzzySearchForm(Form):
         for ex in extracts:
             # self.EChooser.items.append([ex[0], choices[ex[0]].description])
             self.EChooser.items.append([ex])
-        self.RefreshField(super().cEChooser)
-        self.SetControlValue(super().cEChooser, [0])  # set cursor top
+        self.RefreshField(self.cEChooser)
+        self.SetControlValue(self.cEChooser, [0])  # set cursor top
 
     def finished(self):
         pass
