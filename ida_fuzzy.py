@@ -156,7 +156,7 @@ class FuzzySearchThread(QtCore.QThread):
             extracts = []
             for i in res:
                 extracts.append(i[0])
-            for i in xrange(10-len(res)):
+            for i in range(10-len(res)):
                 extracts.append("")
             self.refresh_list.emit(*extracts)  # call main Thread's UI function.
         except TerminateException:
@@ -176,6 +176,13 @@ class FuzzySearchForm(Form):
         self.fst.refresh_list.connect(self.refresh_list)
         self.fst.finished.connect(self.finished)
         # self.EChooser = EmbeddedChooserClass("Title", flags=Choose.CH_CAN_REFRESH)
+
+	# Portability fix from Python2 to Python3.
+        try:
+            self.cEChooser = super().cEChooser #super() will raise exception in python2
+        except:
+            pass
+
         Form.__init__(self, r"""STARTITEM 
         IDA Fuzzy Search
         {FormChangeCb}
@@ -188,7 +195,6 @@ class FuzzySearchForm(Form):
             'FormChangeCb': Form.FormChangeCb(self.OnFormChange),
         })
         # self.modal = False
-
 
     def OnFormChange(self, fid):
         if fid == -1:
@@ -273,7 +279,7 @@ def fuzzy_search_main():
     # Functions()
     # Heads()
     for n in Names():
-        demangled = idc.Demangle(n[1], idc.GetLongPrm(idc.INF_SHORT_DN))
+        demangled = idc.demangle_name(n[1], idc.get_inf_attr(idc.INF_SHORT_DN))
         name = demangled if demangled else n[1]
         # jump to addr
         choices[name] = Commands(fptr=jumpto, args=[n[0]], description="Jump to " + name, icon=124)
